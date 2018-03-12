@@ -8,6 +8,8 @@
 
 #ifdef OPT
 #define OUT_FILE "opt.txt"
+#elif HASH
+#define OUT_FILE "hash.txt"
 #else
 #define OUT_FILE "orig.txt"
 #endif
@@ -52,6 +54,21 @@ int main(int argc, char *argv[])
 #if defined(__GNUC__)
     __builtin___clear_cache((char *) pHead, (char *) pHead + sizeof(entry));
 #endif
+
+#ifdef HASH
+    clock_gettime(CLOCK_REALTIME, &start);
+    entry *hashTable[TABLE_SIZE];
+    init_table(hashTable);
+    while (fgets(line, sizeof(line), fp)) {
+        while (line[i] != '\0')
+            i++;
+        line[i - 1] = '\0';
+        i = 0;
+        append(line,hashTable);
+    }
+    clock_gettime(CLOCK_REALTIME, &end);
+    cpu_time1 = diff_in_second(start, end);
+#else
     clock_gettime(CLOCK_REALTIME, &start);
     while (fgets(line, sizeof(line), fp)) {
         while (line[i] != '\0')
@@ -62,6 +79,7 @@ int main(int argc, char *argv[])
     }
     clock_gettime(CLOCK_REALTIME, &end);
     cpu_time1 = diff_in_second(start, end);
+#endif
 
     /* close file as soon as possible */
     fclose(fp);
@@ -70,16 +88,37 @@ int main(int argc, char *argv[])
 
     /* the givn last name to find */
     char input[MAX_LAST_NAME_SIZE] = "zyxel";
-    e = pHead;
 
+#ifdef HASH
+    assert(findName(input, hashTable) &&
+           "Did you implement findName() in " IMPL "?");
+    assert(0 == strcmp(findName(input, hashTable)->lastName, "zyxel"));
+#else
+    e = pHead;
     assert(findName(input, e) &&
            "Did you implement findName() in " IMPL "?");
     assert(0 == strcmp(findName(input, e)->lastName, "zyxel"));
+#endif
 
 #if defined(__GNUC__)
     __builtin___clear_cache((char *) pHead, (char *) pHead + sizeof(entry));
 #endif
 
+#ifdef HASH
+    /* compute the execution time */
+    clock_gettime(CLOCK_REALTIME, &start);
+    findName(input, hashTable);
+    clock_gettime(CLOCK_REALTIME, &end);
+    cpu_time2 = diff_in_second(start, end);
+
+    /* generate output file*/
+    FILE *output = fopen(OUT_FILE, "a");
+    fprintf(output, "append() findName() %lf %lf\n", cpu_time1, cpu_time2);
+    fclose(output);
+
+    printf("execution time of append() : %lf sec\n", cpu_time1);
+    printf("execution time of findName() : %lf sec\n", cpu_time2);
+#else
     /* compute the execution time */
     clock_gettime(CLOCK_REALTIME, &start);
     findName(input, e);
@@ -93,6 +132,7 @@ int main(int argc, char *argv[])
 
     printf("execution time of append() : %lf sec\n", cpu_time1);
     printf("execution time of findName() : %lf sec\n", cpu_time2);
+#endif
 
     if (pHead->pNext) free(pHead->pNext);
     free(pHead);
